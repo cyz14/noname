@@ -6,8 +6,6 @@
 
 import os, json
 
-test_fname = 'test.txt'
-
 def fileLineNumber(file_name):
     file = open(file_name, 'r')
     return len(file.readlines())
@@ -31,11 +29,11 @@ def sessionCmp(SesA, SesB):
 
 
 def sort_sessions(session_file_name):
-    ''' sort the session file '''
+    ''' Sort the sessions file '''
     sessions = open(session_file_name, 'r+').readlines()
     sessions.sort(sessionCmp)
     
-    sorted_sessions = open('sorted_sessions.json', 'w')
+    sorted_sessions = open('sorted_' + session_file_name, 'w')
     sorted_sessions.writelines(sessions)
     sorted_sessions.close()
 
@@ -49,19 +47,19 @@ def requestCmp(ReqA, ReqB):
 
 
 def sort_requests(request_file_name):
-    ''' prework '''
+    ''' Sort the requests file '''
     freq = open(request_file_name, 'r+')
     requests = freq.readlines()
     requests.sort(requestCmp)
-    sorted_requests = open('sorted_requests.json', 'w')
+    sorted_requests = open('sorted_' + request_file_name, 'w')
     sorted_requests.writelines(requests)
     sorted_requests.close()
     
 
-def merge(fSortedSes = 'sorted_sessions.json', fSortedReq = 'sorted_requests.json'):
-    fses = open(fSortedSes, 'r')
-    freq = open(fSortedReq, 'r')
-    fmerged = open('merged' + fSortedSes[:-5] + fSortedReq[:-5] + '.json', 'w')
+def merge(ses_file, req_file):
+    fses = open('sorted_'+ses_file, 'r')
+    freq = open('sorted_'+req_file, 'r')
+    fmerged = open('merged_' + ses_file[:-5] + '_' + req_file[:-5] + '.json', 'w')
     f_extra_req = open('extra_req.json', 'w')
     
     done = False

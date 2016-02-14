@@ -59,11 +59,12 @@ SessionId 对应一条session日志和多条request日志，简单做法如下�
 
 1. 按行读取session.log, json解析,获取其SessionId值和KeepAliveNum值，KeepAliveNum代表会有几条request
   日志跟它具有同样的SessionId.
-2. 根据session日志的SessionID 搜索request日志中具有相同SessionId日志  
-3. 最后将具有同样SessionID形成一条新的日志格式，格式为JSON，基本如下： 
-  
+2. 根据session日志的SessionID 搜索request日志中具有相同SessionId日志.
+3. 最后将具有同样SessionID形成一条新的日志格式，格式为JSON.  
 
-    {"SesLog":session日志,"ReqLog":[request日志,request日志]}
+合并后格式为：  
+
+    {"SesLog":session日志,"ReqLog":[request日志,request日志]}  
   
 缩进后为：  
 

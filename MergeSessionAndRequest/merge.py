@@ -1,122 +1,12 @@
 # -*- coding: utf-8 -*-
 
-# 合并思路是先分别对 requests 和 sessions 按照 SessionId 进行升序排序，
-# 再分别扫描合并相同 SessionId 的 Session 和 Requests，同时忽略了
-# 只有 request 或 只有 session 的情况.
+import json, time, os, sys
 
-import os, json
-
-def fileLineNumber_len(file_name):
-    # can be very slow and memory costing
-    file = open(file_name, 'r')
-    return len(file.readlines())
-
-def sign(number):
-    ''' return the sign of number '''
-    if number > 0:
-        return 1
-    elif number < 0:
-        return -1
-    return 0
-
-
-def sessionCmp(SesA, SesB):
-    ''' Compare function for sessions '''
-    SesA = json.loads(SesA)
-    SesB = json.loads(SesB)
-    tmp = int(SesA['SessionId']) - int(SesB['SessionId'])
-    return sign(tmp)
-
-
-def sort_sessions(session_file_name):
-    ''' Sort the sessions file '''
-    sessions = open(session_file_name, 'r+').readlines()
-    sessions.sort(sessionCmp)
-    
-    sorted_sessions = open('sorted_' + session_file_name, 'w')
-    sorted_sessions.writelines(sessions)
-    sorted_sessions.close()
-
-
-def requestCmp(ReqA, ReqB):
-    ''' Compare function for requests '''
-    reqa = json.loads(ReqA)
-    reqb = json.loads(ReqB)
-    tmp  = int(reqa['SessionId']) - int(reqb['SessionId'])
-    return sign(tmp)
-
-
-def sort_requests(request_file_name):
-    ''' Sort the requests file '''
-    freq = open(request_file_name, 'r+')
-    requests = freq.readlines()
-    requests.sort(requestCmp)
-    sorted_requests = open('sorted_' + request_file_name, 'w')
-    sorted_requests.writelines(requests)
-    sorted_requests.close()
-
-    
-
-def merge(ses_file, req_file):
-    fses = open('sorted_'+ses_file, 'r')
-    freq = open('sorted_'+req_file, 'r')
-    fmerged = open('merged_' + ses_file[:-5] + '_' + req_file[:-5] + '.json', 'w')
-    f_extra_req = open('extra_req.json', 'w')
-    
-    done = False
-    req_line = ''
-    req = json.loads('{}')
-    
-    for line in fses:
-        try:
-            newlog = json.loads("{}")
-            ses = json.loads(line)
-            newlog['SesLog'] = ses
-        except Exception, e:
-            print "Session file format error."
-            print "Exception", e
-            continue
-        # print newlog['SesLog']
-        newlog['ReqLog'] = []
-        
-        # print ses
-        sesid = int(ses['SessionId'])
-        keep_alive_num = int(ses['KeepAliveNum'])
-        # print '%s: %d, %s: %d' % ('SessionId', sesid, ' KeepAliveNum', keep_alive_num)
-        
-        merged = False
-        while keep_alive_num:
-            if not req_line:
-                req_line = freq.readline()
-                if not req_line:
-                    done = True
-                    break
-            
-            req = json.loads(req_line)
-            req_ses_id = int(req['SessionId'])
-            if req_ses_id == sesid:
-                merged = True
-                newlog['ReqLog'].append(json.loads(req_line))
-                keep_alive_num -= 1
-                req_line = ''
-            elif req_ses_id < sesid:
-                f_extra_req.write(req_line)
-                req_line = ''
-                continue
-            else:
-                break        
-        
-        if len(newlog['ReqLog']) == int(newlog['SesLog']['KeepAliveNum']):
-            fmerged.write(json.dumps(newlog, separators=(',', ':'))+'\n')
-        # 测试时输出
-        # print json.dumps(newlog, indent = 4)
-        if done:
-            break
-        
-    fmerged.close()
-        
+EMPTYJSON = '{}'
+d_log = {}	# dict to save new logs
 
 def getFileNamesFromDir(dir):
+	 # get session file name and request file name from current work directory 
     id = 0
     file_list = []
     for file_name in os.listdir(dir):
@@ -126,18 +16,75 @@ def getFileNamesFromDir(dir):
             file_list.append(file_name)
 
     ses_id = int(raw_input('Please input session file number: '))
-    print ses_id, type(ses_id)
+    print ses_id, file_list[ses_id]
     req_id = int(raw_input('Please input request file number: '))
+    print req_id, file_list[req_id]
+
     return file_list[ses_id], file_list[req_id]
 
-def main():
-    ses_file, req_file = getFileNamesFromDir(os.getcwd())
-    print ses_file, req_file
-    # python的排序耗费了不少时间
-    sort_sessions(ses_file)
-    sort_requests(req_file)
-    merge(ses_file, req_file)
 
+def main():
+	ses_file, req_file = getFileNamesFromDir(os.getcwd())
+	merge(ses_file, req_file)
+
+
+def fileLineNumber(file_name):
+	# Return the number of lines of file, by enumerate over file's lines.
+    count = -1
+    for count, line in enumerate(open(file_name, 'r')):
+        pass
+    return count + 1
+
+
+def merge(f_ses_name, f_req_name):
+	print time.clock(), 'Program starts.'
+	# ses_line_num = fileLineNumber(f_ses_name)
+	# req_line_num = fileLineNumber(f_req_name)
+	# print time.clock()
+	# print 'Session file number:', ses_line_num
+	# print 'Request file number:', req_line_num
+
+	f_ses = open(f_ses_name, 'r')
+	f_req = open(f_req_name, 'r+')
+
+	# result file
+	f_ans = open(f_ses_name[:-4]+f_req_name[:-4]+'json', 'w')
+	
+	print 'Reading sessions file...'
+	for cnt_ses, line in enumerate(f_ses):
+		session = json.loads(line)
+		session_id = int(session['SessionId'])
+		d_log[session_id] = json.loads(EMPTYJSON)
+		d_log[session_id]['SesLog'] = session
+		d_log[session_id]['ReqLog'] = []
+		# update progress can be very time consuming because of IO in loop
+		# if cnt_ses % 100 == 0:
+			# sys.stdout.write('\rProgress: %.1f %% ' % (1.0 * cnt_ses / ses_line_num * 100))
+
+	# sys.stdout.write('\rProgress: %.1f %% ' % 100.0)
+	f_ses.close()
+	print '\nUsed %.6fs to read sessions file.' % time.clock()
+
+	print 'Reading requests file...'
+	for cnt_req, line in enumerate(f_req):
+		request = json.loads(line)
+		request_id = int(request['SessionId'])
+		req_time = int(request['Timestamp']) * 1000
+		if request_id in d_log:
+			# when SessionId has collisions, we should check time range
+			# if req_time <= int(d_log[request_id]['SesLog']['SesStartTime']) + int(d_log[request_id]['SesLog']['SesAllTime']):
+			d_log[request_id]['ReqLog'].append(request)
+			if len(d_log[request_id]['ReqLog']) == int(d_log[request_id]['SesLog']['KeepAliveNum']):
+				f_ans.write(json.dumps( d_log.pop(request_id), separators=(',', ':') ) + '\n')
+
+		# update progress can be very time consuming because of IO in loop
+		# if cnt_req % 100 == 0:
+			# sys.stdout.write('\rProgress: %.1f %% ' % (1.0 * cnt_req / req_line_num * 100))
+	
+	f_req.close()
+	print '\nUsed %.6fs to read requests file.\n' % time.clock()
+
+	d_log.clear()
 
 if __name__ == '__main__':
-    main()
+	main()

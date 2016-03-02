@@ -6,10 +6,10 @@
 
 import os, json
 
-def fileLineNumber(file_name):
+def fileLineNumber_len(file_name):
+    # can be very slow and memory costing
     file = open(file_name, 'r')
     return len(file.readlines())
-
 
 def sign(number):
     ''' return the sign of number '''
@@ -54,6 +54,7 @@ def sort_requests(request_file_name):
     sorted_requests = open('sorted_' + request_file_name, 'w')
     sorted_requests.writelines(requests)
     sorted_requests.close()
+
     
 
 def merge(ses_file, req_file):
@@ -104,8 +105,9 @@ def merge(ses_file, req_file):
                 continue
             else:
                 break        
-                
-        fmerged.write(json.dumps(newlog, separators=(',', ':'))+'\n')
+        
+        if len(newlog['ReqLog']) == int(newlog['SesLog']['KeepAliveNum']):
+            fmerged.write(json.dumps(newlog, separators=(',', ':'))+'\n')
         # 测试时输出
         # print json.dumps(newlog, indent = 4)
         if done:
